@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post Studio</title>
+<style>
+  :root {
+    --sky: #e8f1fb;
+    --sky-deep: #cfe2f5;
+    --ink: #17305a;
+    --white: #ffffff;
+    --yellow: #ffd66b;
+    --yellow-soft: #fff3cf;
+    --blue-soft: #dcebfb;
+    --coral: #ff9d92;
+    --coral-soft: #ffe1dd;
+    --mint: #bfe8dc;
+    --dim: #5c6f8f;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+    --shadow: 4px 4px 0 var(--ink);
+    --shadow-sm: 3px 3px 0 var(--ink);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--sky);
+    background-image: radial-gradient(var(--sky-deep) 1.2px, transparent 1.2px);
+    background-size: 26px 26px;
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 28px 24px 48px;
+  }
+  .shell { max-width: 1240px; margin: 0 auto; }
+
+  header { margin-bottom: 26px; }
+  header h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.01em; display: inline-block; position: relative; }
+  header h1 .hl { position: relative; z-index: 1; white-space: nowrap; }
+  header h1 .hl::after {
+    content: ""; position: absolute; left: -4px; right: -6px; bottom: 2px; height: 45%;
+    background: var(--yellow); z-index: -1; transform: skewX(-8deg);
+  }
+  header p { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  .grid { display: grid; grid-template-columns: 400px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 940px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--white); border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow); }
+  .card .head {
+    padding: 12px 18px; border-bottom: 2px solid var(--ink);
+    font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+    background: var(--blue-soft); border-radius: 12px 12px 0 0;
+  }
+  .card .body { padding: 18px; }
+
+  label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  input[type="password"], input[type="text"], textarea, select {
+    width: 100%; background: var(--white); color: var(--ink);
+    border: 2px solid var(--ink); border-radius: 9px;
+    padding: 10px 12px; font-size: 14px; font-family: var(--sans);
+  }
+  textarea { resize: vertical; min-height: 74px; }
+  input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px solid var(--yellow); outline-offset: 1px; }
+  ::placeholder { color: #9db0c9; }
+  .field { margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+  .hint { font-size: 11px; color: var(--dim); margin-top: 5px; line-height: 1.5; font-weight: 400; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; cursor: pointer; }
+  .check input { width: 16px; height: 16px; accent-color: var(--ink); }
+
+  button {
+    cursor: pointer; border: 2px solid var(--ink); border-radius: 10px;
+    font-size: 15px; font-weight: 700; padding: 12px 16px; font-family: var(--sans);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .btn-run { width: 100%; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .btn-run:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  .btn-run:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn-run:disabled { background: #e6e9ef; color: var(--dim); cursor: not-allowed; box-shadow: none; }
+  .btn-stop { width: 100%; background: var(--coral-soft); color: var(--ink); margin-top: 10px; box-shadow: var(--shadow-sm); display: none; }
+
+  .stats { display: flex; gap: 10px; font-family: var(--mono); font-size: 10px; color: var(--dim); font-weight: 400; }
+  .stats b { color: var(--ink); background: var(--yellow); padding: 0 4px; border-radius: 3px; }
+
+  /* writers' room: sticky-note trace */
+  .trace-card { margin-top: 26px; }
+  .trace { max-height: 470px; overflow-y: auto; padding: 18px 18px 10px; }
+  .note {
+    border: 2px solid var(--ink); border-radius: 10px; box-shadow: var(--shadow-sm);
+    padding: 10px 12px; margin: 0 4px 14px; font-size: 12.5px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word; background: var(--white);
+  }
+  .note:nth-child(odd) { transform: rotate(-0.4deg); }
+  .note:nth-child(even) { transform: rotate(0.4deg); }
+  .note .kind {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 700; margin-bottom: 4px;
+    border: 1.5px solid var(--ink); border-radius: 4px; padding: 1px 6px; background: var(--white);
+  }
+  .note.think { background: var(--blue-soft); color: #33507e; }
+  .note.tool { background: var(--yellow-soft); }
+  .note.tool .kind { background: var(--yellow); }
+  .note.result { background: var(--white); color: var(--dim); }
+  .note.result .kind { background: var(--mint); }
+  .note.critic { background: var(--coral-soft); }
+  .note.critic .kind { background: var(--coral); }
+  .note.final { background: var(--mint); }
+  .note.err { background: var(--coral-soft); }
+  .note.err .kind { background: var(--coral); }
+  .note.running::after { content: " ..."; font-weight: 700; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) {
+    .note.running::after { animation: none; }
+    button { transition: none; }
+  }
+
+  /* output side */
+  .charcount { font-family: var(--mono); font-size: 11px; color: var(--dim); font-weight: 400; }
+  .out-body { padding: 22px; }
+  .empty { color: var(--dim); font-size: 14px; text-align: center; padding: 90px 20px; }
+
+  .li-card {
+    background: var(--white); border: 2px solid var(--ink); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 16px 18px; max-width: 560px; margin: 0 auto 20px;
+  }
+  .li-top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .li-avatar {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--yellow);
+    border: 2px solid var(--ink); flex: none; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px;
+  }
+  .li-name { font-size: 14px; font-weight: 700; }
+  .li-meta { font-size: 12px; color: var(--dim); }
+  .li-body { font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: break-word; font-family: "Segoe UI", Arial, sans-serif; }
+  .li-foot { border-top: 2px dashed var(--sky-deep); margin-top: 14px; padding-top: 10px; display: flex; gap: 18px; color: var(--dim); font-size: 13px; font-weight: 600; }
+
+  .alt-hooks { max-width: 560px; margin: 0 auto; }
+  .alt-hooks h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .alt-hooks .hook {
+    background: var(--yellow-soft); border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: var(--shadow-sm); padding: 10px 14px; margin-bottom: 10px; font-size: 13px;
+  }
+  .btn-copy { background: var(--white); font-size: 12px; padding: 6px 12px; box-shadow: var(--shadow-sm); }
+  .btn-copy:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+  @media (max-width: 600px) { body { padding: 16px 12px 36px; } header h1 { font-size: 26px; } .out-body { padding: 14px; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <h1><span class="hl">Post Studio</span></h1>
+    <p>an agent that researches, drafts, gets roasted by its critic, and revises until the post is good</p>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <div class="head">The brief</div>
+        <div class="body">
+          <div class="field">
+            <label for="apiKey">OpenAI API key</label>
+            <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+            <div class="hint">Sent only to api.openai.com from your browser. Not stored. Cleared on refresh.</div>
+          </div>
+          <div class="field">
+            <label for="topic">What is the post about?</label>
+            <textarea id="topic" placeholder="e.g. Why most RAG demos fall apart in production, promoting our new bootcamp module"></textarea>
+          </div>
+          <div class="field">
+            <label for="audience">Target audience (optional)</label>
+            <input type="text" id="audience" placeholder="e.g. data scientists and ML engineers">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="tone">Tone</label>
+              <select id="tone">
+                <option value="professional and insightful">Professional</option>
+                <option value="casual and conversational">Casual</option>
+                <option value="contrarian and punchy">Contrarian</option>
+                <option value="absurdist humor where the educational point lives inside the joke" selected>Absurdist humor</option>
+                <option value="storytelling, personal anecdote style">Storytelling</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="model">Model</label>
+              <select id="model">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o" selected>gpt-4o</option>
+                <option value="gpt-4.1">gpt-4.1</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="maxSteps">Step budget</label>
+              <select id="maxSteps">
+                <option value="8">8</option>
+                <option value="12" selected>12</option>
+                <option value="18">18</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="minScore">Critic bar</label>
+              <select id="minScore">
+                <option value="7">7/10 (fast)</option>
+                <option value="8" selected>8/10</option>
+                <option value="9">9/10 (picky)</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="useSearch" checked> Allow web search for fresh stats and hooks</label>
+          <label class="check"><input type="checkbox" id="hashtags" checked> Include hashtags</label>
+          <button class="btn-run" id="runBtn">Start writing</button>
+          <button class="btn-stop" id="stopBtn">Stop</button>
+        </div>
+      </section>
+
+      <section class="card trace-card">
+        <div class="head">
+          <span>Writers' room</span>
+          <span class="stats"><span>step <b id="stepCount">0</b></span><span>drafts <b id="draftCount">0</b></span><span>critiques <b id="critiqueCount">0</b></span></span>
+        </div>
+        <div class="trace" id="trace">
+          <div class="note think"><span class="kind">idle</span>
+Quiet in here. Give the agent a brief and it will decide whether to research, how many drafts to write, and keep revising until the critic scores it above your bar.</div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="head">
+        <span>Final post <span class="charcount" id="charcount"></span></span>
+        <button class="btn-copy" id="copyBtn">Copy post</button>
+      </div>
+      <div class="out-body" id="output"><div class="empty">The finished post will render here as a LinkedIn preview.</div></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const traceEl = $("trace"), outEl = $("output");
+  const runBtn = $("runBtn"), stopBtn = $("stopBtn");
+  let controller = null;
+  let finalPost = "";
+  let counts = { step: 0, draft: 0, critique: 0 };
+
+  function bump(k) { counts[k]++; $(k + "Count").textContent = counts[k]; }
+  function resetCounts() { counts = { step: 0, draft: 0, critique: 0 }; ["step","draft","critique"].forEach(k => $(k + "Count").textContent = "0"); }
+
+  function ev(kind, cls, text, running = false) {
+    const div = document.createElement("div");
+    div.className = "note " + cls + (running ? " running" : "");
+    const k = document.createElement("span");
+    k.className = "kind"; k.textContent = kind;
+    div.appendChild(k);
+    div.appendChild(document.createTextNode("\n" + text));
+    traceEl.appendChild(div);
+    traceEl.scrollTop = traceEl.scrollHeight;
+    return div;
+  }
+  function settle(div) { div.classList.remove("running"); }
+
+  async function openai(key, body, signal) {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify(body),
+      signal
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || ("HTTP " + res.status));
+    }
+    return res.json();
+  }
+
+  // ---------- tools ----------
+  const toolSchemas = [
+    {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "Search the web for fresh statistics, news, examples, or trending angles to make the post credible and current. Optional; skip it if the topic does not need external facts.",
+        parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "save_note",
+        description: "Save a fact, angle, hook idea, or stat to your scratchpad for use in drafting.",
+        parameters: { type: "object", properties: { note: { type: "string" }, source: { type: "string" } }, required: ["note"] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "write_draft",
+        description: "Write a full draft of the LinkedIn post. You can write multiple drafts over the run; each is stored. Drafts should be complete, formatted with line breaks exactly as they would appear on LinkedIn.",
+        parameters: { type: "object", properties: { draft: { type: "string" } }, required: ["draft"] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_critique",
+        description: "Send a draft to an independent LinkedIn content critic. Returns a 1-10 score and specific feedback on hook strength, scannability, tone fit, and call to action. Use this to decide whether to revise or deliver.",
+        parameters: { type: "object", properties: { draft: { type: "string" } }, required: ["draft"] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "deliver_post",
+        description: "Deliver the final post and end the run. Only call this once a draft has met the quality bar. Also provide 2 alternative opening hooks the user could swap in.",
+        parameters: {
+          type: "object",
+          properties: {
+            post: { type: "string", description: "The final post, exactly as it should be pasted into LinkedIn, with real line breaks." },
+            alt_hooks: { type: "array", items: { type: "string" }, description: "Two alternative first lines" }
+          },
+          required: ["post"]
+        }
+      }
+    }
+  ];
+
+  async function execWebSearch(key, query, signal) {
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        input: "Search the web and return current facts, statistics, or notable examples relevant to this query, with source URLs. Be concise.\n\nQuery: " + query,
+        tools: [{ type: "web_search_preview" }]
+      }),
+      signal
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || ("search failed: HTTP " + res.status));
+    }
+    const data = await res.json();
+    let text = "";
+    for (const item of data.output || []) {
+      if (item.type === "message") {
+        for (const c of item.content || []) {
+          if (c.type === "output_text") text += c.text;
+        }
+      }
+    }
+    return text || "No results returned.";
+  }
+
+  // Independent critic sub-agent (separate model call, no shared context)
+  async function execCritique(key, draft, tone, audience, minScore, signal) {
+    const data = await openai(key, {
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "user",
+        content:
+          "You are a brutally honest LinkedIn content critic. Score this draft 1-10 and give specific, actionable feedback.\n" +
+          "Judge: (1) hook strength in the first two lines, since LinkedIn truncates there, (2) scannability and line-break rhythm, (3) fit to the intended tone: " + tone + ", " +
+          "(4) fit to the audience: " + (audience || "general professional") + ", (5) clarity of takeaway or call to action, (6) whether it sounds like generic AI slop.\n" +
+          "A post only deserves " + minScore + "+ if the hook is genuinely strong and it does not read as templated.\n" +
+          "Respond in this exact format:\nSCORE: n/10\nFEEDBACK: ...\n\nDRAFT:\n" + draft
+      }]
+    }, signal);
+    return data.choices[0].message.content;
+  }
+
+  // ---------- agent loop ----------
+  async function run() {
+    const key = $("apiKey").value.trim();
+    const topic = $("topic").value.trim();
+    const audience = $("audience").value.trim();
+    const tone = $("tone").value;
+    const model = $("model").value;
+    const maxSteps = parseInt($("maxSteps").value, 10);
+    const minScore = parseInt($("minScore").value, 10);
+    const useSearch = $("useSearch").checked;
+    const hashtags = $("hashtags").checked;
+
+    if (!key) { alert("Enter your OpenAI API key."); return; }
+    if (!topic) { alert("Describe what the post is about."); return; }
+
+    controller = new AbortController();
+    const signal = controller.signal;
+    runBtn.disabled = true;
+    stopBtn.style.display = "block";
+    traceEl.innerHTML = "";
+    outEl.innerHTML = '<div class="empty">Agent is working...</div>';
+    $("charcount").textContent = "";
+    finalPost = "";
+    resetCounts();
+
+    let altHooks = [];
+    const systemPrompt =
+      "You are an autonomous LinkedIn ghostwriter agent. Produce one excellent post on the user's topic.\n\n" +
+      "You decide your own process. A strong pattern: " +
+      (useSearch ? "optionally search for a fresh stat or concrete example to anchor the post, save useful notes, " : "") +
+      "write a draft, send it to the critic, revise based on feedback, and re-critique until the score is at least " + minScore + "/10, then deliver.\n\n" +
+      "Requirements for the post itself:\n" +
+      "- Tone: " + tone + ".\n" +
+      "- Audience: " + (audience || "general professional audience") + ".\n" +
+      "- The first two lines must work as a hook on their own; LinkedIn truncates there.\n" +
+      "- Short paragraphs, generous line breaks, scannable. 900-1800 characters is the sweet spot.\n" +
+      "- No em dashes. American English. No emojis unless the tone genuinely calls for them.\n" +
+      "- End with a clear takeaway, question, or call to action.\n" +
+      (hashtags ? "- Finish with 3-5 relevant hashtags on the last line.\n" : "- Do not include hashtags.\n") +
+      "- Never invent statistics. Only cite numbers that came from your searches or the user's input.\n\n" +
+      "Rules of operation:\n" +
+      "- Before each tool call, state your reasoning in one or two short sentences.\n" +
+      "- Do not deliver a draft the critic has not scored at " + minScore + " or above, unless your step budget is about to run out.\n" +
+      "- You have a budget of " + maxSteps + " steps. You will be warned near the end. Always finish by calling deliver_post.";
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: "Post topic/brief: " + topic }
+    ];
+
+    try {
+      let finished = false;
+      while (!finished) {
+        if (counts.step >= maxSteps) {
+          ev("budget", "err", "Step budget exhausted. Forcing delivery of the best current draft.");
+          messages.push({ role: "user", content: "STOP. Budget exhausted. Call deliver_post NOW with your best draft so far." });
+        } else if (counts.step === maxSteps - 3) {
+          messages.push({ role: "user", content: "Warning: only 3 steps remain. Wrap up and deliver soon." });
+        }
+        bump("step");
+
+        const data = await openai(key, {
+          model,
+          messages,
+          tools: toolSchemas,
+          tool_choice: counts.step > maxSteps ? { type: "function", function: { name: "deliver_post" } } : "auto",
+          parallel_tool_calls: false
+        }, signal);
+        const msg = data.choices[0].message;
+        messages.push(msg);
+
+        if (msg.content && msg.content.trim()) ev("agent thinking", "think", msg.content.trim());
+
+        const calls = msg.tool_calls || [];
+        if (!calls.length) {
+          if (msg.content && msg.content.length > 300) {
+            finalPost = msg.content;
+            finished = true;
+            ev("done", "final", "Agent delivered as plain text.");
+          } else {
+            messages.push({ role: "user", content: "Continue using your tools, or call deliver_post if done." });
+          }
+          continue;
+        }
+
+        for (const call of calls) {
+          let args = {};
+          try { args = JSON.parse(call.function.arguments || "{}"); } catch (e) {}
+          const name = call.function.name;
+          let result = "";
+
+          if (name === "web_search") {
+            if (!useSearch) {
+              result = "Web search is disabled for this run. Proceed without it.";
+              ev("web_search", "err", "Blocked: search disabled by user.");
+            } else {
+              const box = ev("web_search", "tool", '"' + (args.query || "") + '"', true);
+              try {
+                result = await execWebSearch(key, args.query || topic, signal);
+                settle(box);
+                ev("results", "result", result.length > 350 ? result.slice(0, 350) + " [truncated here, full text given to agent]" : result);
+              } catch (e) {
+                if (e.name === "AbortError") throw e;
+                settle(box);
+                result = "Search error: " + e.message + ". Proceed without it or retry.";
+                ev("error", "err", result);
+              }
+            }
+          } else if (name === "save_note") {
+            result = "Saved.";
+            ev("save_note", "tool", (args.note || "").slice(0, 200));
+          } else if (name === "write_draft") {
+            bump("draft");
+            result = "Draft " + counts.draft + " stored. Consider sending it to get_critique.";
+            ev("draft " + counts.draft, "tool", (args.draft || "").length + " chars\n\n" + (args.draft || ""));
+          } else if (name === "get_critique") {
+            bump("critique");
+            const box = ev("critique", "tool", "Sending draft to the independent critic (gpt-4o-mini)", true);
+            try {
+              result = await execCritique(key, args.draft || "", tone, audience, minScore, signal);
+              settle(box);
+              ev("critic verdict", "critic", result);
+            } catch (e) {
+              if (e.name === "AbortError") throw e;
+              settle(box);
+              result = "Critic unavailable: " + e.message + ". Use your own judgment.";
+              ev("error", "err", result);
+            }
+          } else if (name === "deliver_post") {
+            finalPost = args.post || "";
+            altHooks = Array.isArray(args.alt_hooks) ? args.alt_hooks : [];
+            result = "Delivered.";
+            finished = true;
+            ev("done", "final", "Delivered after " + counts.step + " steps, " + counts.draft + " drafts, " + counts.critique + " critiques.");
+          } else {
+            result = "Unknown tool.";
+          }
+
+          messages.push({ role: "tool", tool_call_id: call.id, content: result });
+          if (finished) break;
+        }
+      }
+
+      renderPost(finalPost, altHooks);
+    } catch (e) {
+      if (e.name === "AbortError") {
+        ev("stopped", "err", "Run stopped by user.");
+        if (!finalPost) outEl.innerHTML = '<div class="empty">Run stopped.</div>';
+      } else {
+        ev("error", "err", e.message);
+        outEl.innerHTML = '<div class="empty">Something went wrong. Check the writers\' room.</div>';
+      }
+    } finally {
+      runBtn.disabled = false;
+      stopBtn.style.display = "none";
+      controller = null;
+    }
+  }
+
+  function renderPost(post, hooks) {
+    outEl.innerHTML = "";
+    $("charcount").textContent = "(" + post.length + " chars)";
+
+    const card = document.createElement("div");
+    card.className = "li-card";
+    card.innerHTML =
+      '<div class="li-top"><div class="li-avatar">You</div><div><div class="li-name">Your Name</div><div class="li-meta">Your headline &middot; Just now</div></div></div>' +
+      '<div class="li-body"></div>' +
+      '<div class="li-foot"><span>Like</span><span>Comment</span><span>Repost</span><span>Send</span></div>';
+    card.querySelector(".li-body").textContent = post;
+    outEl.appendChild(card);
+
+    if (hooks && hooks.length) {
+      const wrap = document.createElement("div");
+      wrap.className = "alt-hooks";
+      wrap.innerHTML = "<h3>Alternative hooks</h3>";
+      hooks.forEach(h => {
+        const d = document.createElement("div");
+        d.className = "hook";
+        d.textContent = h;
+        wrap.appendChild(d);
+      });
+      outEl.appendChild(wrap);
+    }
+  }
+
+  runBtn.addEventListener("click", run);
+  stopBtn.addEventListener("click", () => controller && controller.abort());
+
+  $("copyBtn").addEventListener("click", async () => {
+    if (!finalPost) return;
+    await navigator.clipboard.writeText(finalPost);
+    $("copyBtn").textContent = "Copied";
+    setTimeout(() => $("copyBtn").textContent = "Copy post", 1500);
+  });
+})();
+</script>
+</body>
+</html>
